@@ -1,0 +1,122 @@
+{% extends 'assessments/base.html' %}
+
+{% block title %}{{ assessment.name }} - HOA Special Assessment Tracker{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'assessments:home' %}">Home</a> /
+    <a href="{% url 'assessments:association_detail' assessment.association.id %}">{{ assessment.association.name }}</a> /
+    {{ assessment.name }}
+</div>
+
+<div class="card">
+    <h2>{{ assessment.name }}</h2>
+    <p>{{ assessment.description }}</p>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <label>Total Loan Amount</label>
+            <div class="value">${{ assessment.total_loan_amount|floatformat:2 }}</div>
+        </div>
+        <div class="info-item">
+            <label>Interest Rate</label>
+            <div class="value">{{ assessment.interest_rate }}%</div>
+        </div>
+        <div class="info-item">
+            <label>Loan Period</label>
+            <div class="value">{{ assessment.loan_period_months }} months</div>
+        </div>
+        <div class="info-item">
+            <label>Monthly Loan Payment</label>
+            <div class="value">${{ assessment.monthly_loan_payment|floatformat:2 }}</div>
+        </div>
+        <div class="info-item">
+            <label>Start Date</label>
+            <div class="value">{{ assessment.start_date|date:"M d, Y" }}</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="{% url 'assessments:download_assessment_pdf' assessment.id %}" class="btn">Download PDF Report</a>
+        <a href="/admin/assessments/specialassessment/{{ assessment.id }}/actions/" class="btn">Export to Excel</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Summary</h3>
+    <div class="info-grid">
+        <div class="info-item">
+            <label>Total Assessment Amount</label>
+            <div class="value">${{ total_assessment|floatformat:2 }}</div>
+        </div>
+        <div class="info-item">
+            <label>Total Paid</label>
+            <div class="value" style="color: green;">${{ total_paid|floatformat:2 }}</div>
+        </div>
+        <div class="info-item">
+            <label>Total Remaining</label>
+            <div class="value" style="color: red;">${{ total_remaining|floatformat:2 }}</div>
+        </div>
+        <div class="info-item">
+            <label>Number of Units</label>
+            <div class="value">{{ unit_assessments|length }}</div>
+        </div>
+    </div>
+
+    <h3 style="margin-top: 1.5rem;">Payment Status Breakdown</h3>
+    <div class="info-grid">
+        {% for status, count in status_counts.items %}
+        <div class="info-item">
+            <label>{{ status }}</label>
+            <div class="value">{{ count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>Unit Assessments</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Total Assessment</th>
+                <th>Monthly Payment</th>
+                <th>Total Paid</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ua in unit_assessments %}
+            <tr>
+                <td><strong>{{ ua.unit.unit_number }}</strong></td>
+                <td>${{ ua.total_assessment_amount|floatformat:2 }}</td>
+                <td>${{ ua.total_monthly_payment|floatformat:2 }}</td>
+                <td style="color: green;">${{ ua.total_paid|floatformat:2 }}</td>
+                <td style="color: red;">${{ ua.remaining_balance|floatformat:2 }}</td>
+                <td>
+                    {% with status=ua.payment_status %}
+                    <span class="status
+                        {% if status == 'Paid in Full' %}status-paid
+                        {% elif status == 'Current' %}status-current
+                        {% elif status == 'Behind' %}status-behind
+                        {% elif status == 'Not Started' %}status-not-started
+                        {% elif status == 'Partial Payment' %}status-partial
+                        {% else %}status-not-paid
+                        {% endif %}">
+                        {{ status }}
+                    </span>
+                    {% endwith %}
+                </td>
+                <td>
+                    <a href="{% url 'assessments:unit_assessment_detail' ua.id %}" class="btn btn-small">View</a>
+                    <a href="{% url 'assessments:download_unit_statement_pdf' ua.id %}" class="btn btn-small">PDF</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

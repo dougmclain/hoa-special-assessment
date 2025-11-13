@@ -1,0 +1,28 @@
+{% extends 'assessments/base.html' %}
+
+{% block title %}Home - HOA Special Assessment Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome to HOA Special Assessment Tracker</h2>
+    <p>Manage and track special assessments for homeowners associations. Track payments, calculate interest, and generate reports.</p>
+</div>
+
+<div class="card">
+    <h2>Associations</h2>
+    {% if associations %}
+        {% for association in associations %}
+        <div class="card">
+            <h3>{{ association.name }}</h3>
+            <p><strong>Management Company:</strong> {{ association.management_company }}</p>
+            <p><strong>Number of Units:</strong> {{ association.units.count }}</p>
+            <div class="actions">
+                <a href="{% url 'assessments:association_detail' association.id %}" class="btn">View Details</a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No associations found. Add one in the <a href="/admin/">admin panel</a>.</p>
+    {% endif %}
+</div>
+{% endblock %}

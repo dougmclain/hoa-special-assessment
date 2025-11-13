@@ -1,0 +1,58 @@
+{% extends 'assessments/base.html' %}
+
+{% block title %}{{ association.name }} - HOA Special Assessment Tracker{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'assessments:home' %}">Home</a> / {{ association.name }}
+</div>
+
+<div class="card">
+    <h2>{{ association.name }}</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <label>Management Company</label>
+            <div class="value">{{ association.management_company }}</div>
+        </div>
+        <div class="info-item">
+            <label>Total Units</label>
+            <div class="value">{{ association.units.count }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Special Assessments</h3>
+    {% if assessments %}
+        {% for assessment in assessments %}
+        <div class="card">
+            <h3>{{ assessment.name }}</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Loan Amount</label>
+                    <div class="value">${{ assessment.total_loan_amount|floatformat:2 }}</div>
+                </div>
+                <div class="info-item">
+                    <label>Interest Rate</label>
+                    <div class="value">{{ assessment.interest_rate }}%</div>
+                </div>
+                <div class="info-item">
+                    <label>Loan Period</label>
+                    <div class="value">{{ assessment.loan_period_months }} months</div>
+                </div>
+                <div class="info-item">
+                    <label>Start Date</label>
+                    <div class="value">{{ assessment.start_date|date:"M d, Y" }}</div>
+                </div>
+            </div>
+            <div class="actions">
+                <a href="{% url 'assessments:assessment_detail' assessment.id %}" class="btn">View Details</a>
+                <a href="{% url 'assessments:download_assessment_pdf' assessment.id %}" class="btn">Download PDF</a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No special assessments found.</p>
+    {% endif %}
+</div>
+{% endblock %}

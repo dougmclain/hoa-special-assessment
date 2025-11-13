@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}HOA Special Assessment Tracker{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background-color: #1f4788;
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .nav {
+            margin-top: 0.5rem;
+        }
+
+        .nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-right: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .nav a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .main-content {
+            padding: 2rem 0;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #1f4788;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .card h3 {
+            color: #366092;
+            margin-bottom: 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: #366092;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.6rem 1.2rem;
+            background-color: #366092;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #1f4788;
+        }
+
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-paid {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .status-current {
+            background-color: #2196f3;
+            color: white;
+        }
+
+        .status-behind {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        .status-not-started {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .status-partial {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        .status-not-paid {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .info-item {
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-left: 4px solid #366092;
+            border-radius: 4px;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.3rem;
+        }
+
+        .info-item .value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .breadcrumb {
+            margin-bottom: 1rem;
+            color: #666;
+        }
+
+        .breadcrumb a {
+            color: #366092;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>HOA Special Assessment Tracker</h1>
+            <nav class="nav">
+                <a href="{% url 'assessments:home' %}">Home</a>
+                <a href="/admin/">Admin Panel</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="container main-content">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>
