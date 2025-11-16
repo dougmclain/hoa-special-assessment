@@ -1,0 +1,143 @@
+{% extends 'assessments/base.html' %}
+
+{% block title %}Edit Payoff - Unit {{ unit_assessment.unit.unit_number }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'assessments:home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assessments:association_detail' unit_assessment.special_assessment.association.id %}">{{ unit_assessment.special_assessment.association.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assessments:assessment_detail' unit_assessment.special_assessment.id %}">{{ unit_assessment.special_assessment.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}">Unit {{ unit_assessment.unit.unit_number }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit Payoff</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Edit Payoff Information</h4>
+                    <small>Unit {{ unit_assessment.unit.unit_number }} - {{ unit_assessment.special_assessment.name }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="payoff_amount" class="form-label">Payoff Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text"
+                                       class="form-control"
+                                       id="payoff_amount"
+                                       name="payoff_amount"
+                                       value="{% if unit_assessment.payoff_amount %}{{ unit_assessment.payoff_amount }}{% endif %}"
+                                       placeholder="0.00">
+                            </div>
+                            <small class="form-text text-muted">Enter the lump sum payoff amount (without commas)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="payoff_date" class="form-label">Payoff Date</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="payoff_date"
+                                   name="payoff_date"
+                                   value="{% if unit_assessment.payoff_date %}{{ unit_assessment.payoff_date|date:'Y-m-d' }}{% endif %}">
+                            <small class="form-text text-muted">Date when the payoff was received</small>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="is_paid_off"
+                                   name="is_paid_off"
+                                   {% if unit_assessment.is_paid_off %}checked{% endif %}>
+                            <label class="form-check-label" for="is_paid_off">
+                                Mark as Paid Off
+                            </label>
+                            <small class="form-text text-muted d-block">Check this box if the assessment has been fully paid off</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <div>
+                                <button type="submit" class="btn btn-primary me-2">Save Changes</button>
+                                <a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}" class="btn btn-secondary">Cancel</a>
+                            </div>
+                            <button type="submit" name="clear_payoff" class="btn btn-danger"
+                                    onclick="return confirm('Are you sure you want to clear all payoff information?')">
+                                Clear Payoff
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Current Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6">Total Assessment:</dt>
+                        <dd class="col-sm-6 text-end">${{ unit_assessment.total_assessment_amount|floatformat:2 }}</dd>
+
+                        <dt class="col-sm-6">Total Paid:</dt>
+                        <dd class="col-sm-6 text-end">${{ unit_assessment.total_paid|floatformat:2 }}</dd>
+
+                        <dt class="col-sm-6">Remaining Balance:</dt>
+                        <dd class="col-sm-6 text-end">${{ unit_assessment.remaining_balance|floatformat:2 }}</dd>
+
+                        <dt class="col-sm-6 mt-2 pt-2 border-top">Current Payoff:</dt>
+                        <dd class="col-sm-6 mt-2 pt-2 border-top text-end">
+                            {% if unit_assessment.payoff_amount %}
+                                ${{ unit_assessment.payoff_amount|floatformat:2 }}
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-6">Payoff Date:</dt>
+                        <dd class="col-sm-6 text-end">
+                            {% if unit_assessment.payoff_date %}
+                                {{ unit_assessment.payoff_date|date:"m/d/Y" }}
+                            {% else %}
+                                <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-6">Status:</dt>
+                        <dd class="col-sm-6 text-end">
+                            {% if unit_assessment.is_paid_off %}
+                                <span class="badge bg-success">Paid Off</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not Paid Off</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Quick Links</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'assessments:payoff_calculator' unit_assessment.id %}" class="btn btn-sm btn-outline-primary">
+                            Payoff Calculator
+                        </a>
+                        <a href="{% url 'assessments:monthly_payments' unit_assessment.id %}" class="btn btn-sm btn-outline-primary">
+                            Monthly Payments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

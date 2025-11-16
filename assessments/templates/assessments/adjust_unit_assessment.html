@@ -1,0 +1,143 @@
+{% extends 'assessments/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Adjust Assessment - Unit {{ unit_assessment.unit.unit_number }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'assessments:home' %}">Home</a> /
+    <a href="{% url 'assessments:association_detail' unit_assessment.special_assessment.association.id %}">
+        {{ unit_assessment.special_assessment.association.name }}
+    </a> /
+    <a href="{% url 'assessments:assessment_detail' unit_assessment.special_assessment.id %}">
+        {{ unit_assessment.special_assessment.name }}
+    </a> /
+    <a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}">
+        Unit {{ unit_assessment.unit.unit_number }}
+    </a> /
+    Adjust Assessment
+</div>
+
+<div class="card">
+    <h2>Adjust Assessment for Unit {{ unit_assessment.unit.unit_number }}</h2>
+    <p>Modify the base assessment amount and additional fees for this unit. Monthly payment schedules will be automatically recalculated.</p>
+
+    <div class="actions">
+        <a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}" class="btn">Back to Unit Details</a>
+    </div>
+</div>
+
+{% if messages %}
+<div class="card">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="card">
+        <h3>Base Assessment</h3>
+        <div style="margin-bottom: 20px;">
+            <label for="base_assessment">Base Assessment Amount:</label>
+            <input type="number" step="0.01" name="base_assessment" id="base_assessment"
+                   value="{{ unit_assessment.base_assessment_amount }}"
+                   style="width: 300px; padding: 8px; font-size: 16px;" required>
+            <p style="margin-top: 5px; color: #666; font-size: 14px;">
+                Current monthly payment (base): {{ unit_assessment.monthly_base_payment|currency }}
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Additional Fees (Limited Common Elements)</h3>
+
+        {% if additional_fees %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Fee Type</th>
+                    <th>Current Amount</th>
+                    <th>New Amount</th>
+                    <th>Monthly Payment</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fee in additional_fees %}
+                <tr>
+                    <td><strong>{{ fee.fee_type }}</strong></td>
+                    <td>{{ fee.fee_amount|currency }}</td>
+                    <td>
+                        <input type="number" step="0.01" name="fee_amount_{{ fee.id }}"
+                               value="{{ fee.fee_amount }}"
+                               style="width: 150px; padding: 6px;">
+                    </td>
+                    <td>{{ fee.monthly_payment|currency }}</td>
+                    <td>
+                        <input type="checkbox" name="delete_fee_{{ fee.id }}" value="1">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No additional fees currently assigned to this unit.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Add New Fee</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; max-width: 600px;">
+            <div>
+                <label for="new_fee_type">Fee Type:</label>
+                <input type="text" name="new_fee_type" id="new_fee_type"
+                       placeholder="e.g., Deck, Skylight, Balcony"
+                       style="width: 100%; padding: 8px;">
+            </div>
+            <div>
+                <label for="new_fee_amount">Fee Amount:</label>
+                <input type="number" step="0.01" name="new_fee_amount" id="new_fee_amount"
+                       placeholder="0.00"
+                       style="width: 100%; padding: 8px;">
+            </div>
+        </div>
+        <p style="margin-top: 10px; color: #666; font-size: 14px;">
+            Note: Monthly payment will be calculated automatically based on the 8.38% interest rate and 240-month term.
+        </p>
+    </div>
+
+    <div class="card">
+        <h3>Summary</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Current Total Assessment</label>
+                <div class="value">{{ unit_assessment.total_assessment_amount|currency }}</div>
+            </div>
+            <div class="info-item">
+                <label>Current Total Monthly Payment</label>
+                <div class="value">{{ unit_assessment.total_monthly_payment|currency }}</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107;">
+            <strong>Warning:</strong> Updating these amounts will recalculate and replace all 240 monthly payment schedules.
+            Any payments already recorded will be preserved, but expected amounts will be updated.
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button type="submit" class="btn" style="background-color: #28a745; color: white;">Save Changes</button>
+            <a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}" class="btn">Cancel</a>
+        </div>
+    </div>
+</form>
+
+<style>
+.alert { padding: 10px; margin: 10px 0; border-radius: 4px; }
+.alert-success { background-color: #d4edda; color: #155724; }
+.alert-error { background-color: #f8d7da; color: #721c24; }
+</style>
+
+{% endblock %}

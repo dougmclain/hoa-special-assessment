@@ -1,0 +1,155 @@
+{% extends 'assessments/base.html' %}
+{% load currency_filters %}
+
+{% block title %}2024 Payment Report - {{ assessment.association.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'assessments:home' %}">Home</a> /
+    <a href="{% url 'assessments:association_detail' assessment.association.id %}">
+        {{ assessment.association.name }}
+    </a> /
+    <a href="{% url 'assessments:assessment_detail' assessment.id %}">
+        {{ assessment.name }}
+    </a> /
+    2024 Payment Report
+</div>
+
+<div class="card" style="background-color: #366092; color: white; padding: 20px; margin-bottom: 20px;">
+    <h1 style="margin: 0; color: white;">2024 PAYMENT REPORT</h1>
+    <h2 style="margin: 10px 0 0 0; color: white;">{{ assessment.association.name }}</h2>
+    <p style="margin: 5px 0 0 0;">Report Date: {{ report_date|date:"F d, Y" }}</p>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0;">Report Summary</h2>
+        <button onclick="window.print()" class="btn" style="background-color: #28a745; color: white;">
+            Print Report
+        </button>
+    </div>
+
+    <div class="info-grid" style="margin-bottom: 30px;">
+        <div class="info-item">
+            <label>Total Units Paid/Current</label>
+            <div class="value" style="color: #366092; font-size: 24px; font-weight: bold;">{{ total_units }}</div>
+        </div>
+        <div class="info-item">
+            <label>Lump Sum Payoffs</label>
+            <div class="value" style="color: #fd7e14; font-size: 20px;">{{ payoff_units|length }} units</div>
+        </div>
+        <div class="info-item">
+            <label>Monthly Payments Current</label>
+            <div class="value" style="color: #28a745; font-size: 20px;">{{ monthly_paid_units|length }} units</div>
+        </div>
+        <div class="info-item">
+            <label>Total Amount Collected</label>
+            <div class="value" style="color: #366092; font-size: 24px; font-weight: bold;">{{ grand_total|currency }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="border-left: 4px solid #fd7e14;">
+    <h3>Units Paid Off in Full (Lump Sum Payoffs)</h3>
+    <p style="color: #666; margin-bottom: 20px;">
+        These units paid off their entire assessment with a single lump sum payment.
+    </p>
+
+    {% if payoff_units %}
+    <table>
+        <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Payoff Date</th>
+                <th style="text-align: right;">Amount Paid</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for unit in payoff_units %}
+            <tr>
+                <td style="font-weight: bold;">{{ unit.unit }}</td>
+                <td>{{ unit.date|date:"m/d/Y" }}</td>
+                <td style="text-align: right;">{{ unit.amount|currency }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background-color: #fff3cd; font-weight: bold; border-top: 2px solid #fd7e14;">
+                <td colspan="2">SUBTOTAL ({{ payoff_units|length }} units)</td>
+                <td style="text-align: right;">{{ payoff_total|currency }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #999; font-style: italic;">No units paid off with lump sum in 2024.</p>
+    {% endif %}
+</div>
+
+<div class="card" style="border-left: 4px solid #28a745;">
+    <h3>Units Paid Through 2024 (Monthly Payments)</h3>
+    <p style="color: #666; margin-bottom: 20px;">
+        These units have made all their monthly payments through December 2024.
+    </p>
+
+    {% if monthly_paid_units %}
+    <table>
+        <thead>
+            <tr>
+                <th>Unit</th>
+                <th style="text-align: right;">2024 Payments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for unit in monthly_paid_units %}
+            <tr>
+                <td style="font-weight: bold;">{{ unit.unit }}</td>
+                <td style="text-align: right;">{{ unit.amount|currency }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background-color: #d4edda; font-weight: bold; border-top: 2px solid #28a745;">
+                <td>SUBTOTAL ({{ monthly_paid_units|length }} units)</td>
+                <td style="text-align: right;">{{ monthly_total|currency }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #999; font-style: italic;">No units with monthly payments recorded in 2024.</p>
+    {% endif %}
+</div>
+
+<div class="card" style="background-color: #366092; color: white;">
+    <h2 style="margin: 0 0 20px 0; color: white;">GRAND TOTAL</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div>
+            <div style="font-size: 14px; opacity: 0.9;">Total Units</div>
+            <div style="font-size: 32px; font-weight: bold;">{{ total_units }}</div>
+        </div>
+        <div>
+            <div style="font-size: 14px; opacity: 0.9;">Total Amount Collected in 2024</div>
+            <div style="font-size: 32px; font-weight: bold;">{{ grand_total|currency }}</div>
+        </div>
+        <div>
+            <div style="font-size: 14px; opacity: 0.9;">Breakdown</div>
+            <div style="font-size: 16px;">
+                Payoffs: {{ payoff_total|currency }}<br>
+                Monthly: {{ monthly_total|currency }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="actions" style="margin-top: 20px;">
+    <a href="{% url 'assessments:assessment_detail' assessment.id %}" class="btn" style="background-color: #6c757d; color: white;">
+        Back to Assessment
+    </a>
+</div>
+
+<style>
+    @media print {
+        .btn, .actions, .breadcrumb {
+            display: none !important;
+        }
+        .card {
+            page-break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}

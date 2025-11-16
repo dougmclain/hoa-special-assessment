@@ -1,11 +1,30 @@
 from django.core.management.base import BaseCommand
-from assessments.models import Association, SpecialAssessment, Unit, UnitAssessment, AdditionalFee
+from assessments.models import Association, SpecialAssessment, Unit, UnitAssessment, AdditionalFee, MonthlyPaymentSchedule
 from decimal import Decimal
 from datetime import date
+from dateutil.relativedelta import relativedelta
 
 
 class Command(BaseCommand):
     help = 'Import Renaissance Condominium Association 2024 Special Assessment data'
+
+    def calculate_monthly_lce(self, deck_amount, skylight_amount):
+        """Calculate monthly LCE payment based on fee amounts from PDF"""
+        monthly_lce = Decimal('0')
+
+        # Skylight monthly payments
+        if skylight_amount == Decimal('974.00'):
+            monthly_lce += Decimal('9.01')
+        elif skylight_amount == Decimal('487.00'):
+            monthly_lce += Decimal('4.50')
+
+        # Deck monthly payments
+        if deck_amount == Decimal('23051.64'):
+            monthly_lce += Decimal('213.23')
+        elif deck_amount == Decimal('11525.82'):
+            monthly_lce += Decimal('106.61')
+
+        return monthly_lce
 
     def handle(self, *args, **kwargs):
         # Create Association
@@ -39,8 +58,7 @@ class Command(BaseCommand):
         if created:
             self.stdout.write(self.style.SUCCESS(f'Created special assessment: {special_assessment.name}'))
         else:
-            self.stdout.write(self.style.WARNING(f'Special assessment already exists: {special_assessment.name}'))
-            return
+            self.stdout.write(self.style.WARNING(f'Special assessment already exists: {special_assessment.name} - will update units and schedules'))
 
         # Unit data from PDF
         unit_data = [
@@ -148,6 +166,8 @@ class Command(BaseCommand):
 
         # Create units and assessments
         count = 0
+        BASE_MONTHLY = Decimal('290.92')  # Base monthly payment from PDF
+
         for data in unit_data:
             # Create unit
             unit, created = Unit.objects.get_or_create(
@@ -158,39 +178,84 @@ class Command(BaseCommand):
                 }
             )
 
-            # Create unit assessment
+            # Create unit assessment with manually set monthly payment from PDF
+            deck_amt = Decimal(data['deck'])
+            skylight_amt = Decimal(data['skylight'])
+
             unit_assessment, created = UnitAssessment.objects.get_or_create(
                 unit=unit,
                 special_assessment=special_assessment,
                 defaults={
                     'base_assessment_amount': Decimal(data['base']),
-                    'payment_option': 'monthly'
+                    'payment_option': 'monthly',
+                    'monthly_base_payment': BASE_MONTHLY  # Use PDF value instead of calculated
                 }
             )
 
+            # Update monthly_base_payment if already exists
+            if not created and unit_assessment.monthly_base_payment != BASE_MONTHLY:
+                unit_assessment.monthly_base_payment = BASE_MONTHLY
+                unit_assessment.save()
+
             # Create additional fees if applicable
-            if Decimal(data['deck']) > 0:
-                AdditionalFee.objects.get_or_create(
+            deck_monthly = Decimal('0')
+            if deck_amt > 0:
+                fee, fee_created = AdditionalFee.objects.get_or_create(
                     unit_assessment=unit_assessment,
                     fee_type='Deck',
                     defaults={
-                        'fee_amount': Decimal(data['deck']),
+                        'fee_amount': deck_amt,
                         'description': 'Limited Common Element - Deck replacement/repair'
                     }
                 )
+                # Calculate monthly payment for deck
+                if deck_amt == Decimal('23051.64'):
+                    deck_monthly = Decimal('213.23')
+                elif deck_amt == Decimal('11525.82'):
+                    deck_monthly = Decimal('106.61')
 
-            if Decimal(data['skylight']) > 0:
-                AdditionalFee.objects.get_or_create(
+                if fee.monthly_payment != deck_monthly:
+                    fee.monthly_payment = deck_monthly
+                    fee.save()
+
+            skylight_monthly = Decimal('0')
+            if skylight_amt > 0:
+                fee, fee_created = AdditionalFee.objects.get_or_create(
                     unit_assessment=unit_assessment,
                     fee_type='Skylight',
                     defaults={
-                        'fee_amount': Decimal(data['skylight']),
+                        'fee_amount': skylight_amt,
                         'description': 'Limited Common Element - Skylight replacement/repair'
                     }
+                )
+                # Calculate monthly payment for skylight
+                if skylight_amt == Decimal('974.00'):
+                    skylight_monthly = Decimal('9.01')
+                elif skylight_amt == Decimal('487.00'):
+                    skylight_monthly = Decimal('4.50')
+
+                if fee.monthly_payment != skylight_monthly:
+                    fee.monthly_payment = skylight_monthly
+                    fee.save()
+
+            # Create monthly payment schedule (240 months starting 9/1/2024)
+            total_monthly = BASE_MONTHLY + deck_monthly + skylight_monthly
+
+            # Delete existing schedules if reimporting
+            unit_assessment.monthly_schedule.all().delete()
+
+            start_date = date(2024, 9, 1)
+            for month_num in range(1, 241):  # 240 months
+                due_date = start_date + relativedelta(months=month_num - 1)
+                MonthlyPaymentSchedule.objects.create(
+                    unit_assessment=unit_assessment,
+                    due_date=due_date,
+                    month_number=month_num,
+                    expected_amount=total_monthly
                 )
 
             count += 1
             if count % 10 == 0:
                 self.stdout.write(f'Processed {count} units...')
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully imported {count} units for Renaissance Condominium Association'))
+        self.stdout.write(self.style.SUCCESS(f'Successfully imported {count} units with 240-month payment schedules for Renaissance Condominium Association'))

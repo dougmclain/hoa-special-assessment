@@ -1,4 +1,5 @@
 {% extends 'assessments/base.html' %}
+{% load currency_filters %}
 
 {% block title %}{{ assessment.name }} - HOA Special Assessment Tracker{% endblock %}
 
@@ -16,7 +17,7 @@
     <div class="info-grid">
         <div class="info-item">
             <label>Total Loan Amount</label>
-            <div class="value">${{ assessment.total_loan_amount|floatformat:2 }}</div>
+            <div class="value">{{ assessment.total_loan_amount|currency }}</div>
         </div>
         <div class="info-item">
             <label>Interest Rate</label>
@@ -28,7 +29,7 @@
         </div>
         <div class="info-item">
             <label>Monthly Loan Payment</label>
-            <div class="value">${{ assessment.monthly_loan_payment|floatformat:2 }}</div>
+            <div class="value">{{ assessment.monthly_loan_payment|currency }}</div>
         </div>
         <div class="info-item">
             <label>Start Date</label>
@@ -37,6 +38,7 @@
     </div>
 
     <div class="actions">
+        <a href="{% url 'assessments:payment_report_2024' assessment.id %}" class="btn" style="background-color: #366092; color: white;">2024 Payment Report</a>
         <a href="{% url 'assessments:download_assessment_pdf' assessment.id %}" class="btn">Download PDF Report</a>
         <a href="/admin/assessments/specialassessment/{{ assessment.id }}/actions/" class="btn">Export to Excel</a>
     </div>
@@ -47,15 +49,15 @@
     <div class="info-grid">
         <div class="info-item">
             <label>Total Assessment Amount</label>
-            <div class="value">${{ total_assessment|floatformat:2 }}</div>
+            <div class="value">{{ total_assessment|currency }}</div>
         </div>
         <div class="info-item">
             <label>Total Paid</label>
-            <div class="value" style="color: green;">${{ total_paid|floatformat:2 }}</div>
+            <div class="value" style="color: green;">{{ total_paid|currency }}</div>
         </div>
         <div class="info-item">
             <label>Total Remaining</label>
-            <div class="value" style="color: red;">${{ total_remaining|floatformat:2 }}</div>
+            <div class="value" style="color: red;">{{ total_remaining|currency }}</div>
         </div>
         <div class="info-item">
             <label>Number of Units</label>
@@ -92,10 +94,10 @@
             {% for ua in unit_assessments %}
             <tr>
                 <td><strong>{{ ua.unit.unit_number }}</strong></td>
-                <td>${{ ua.total_assessment_amount|floatformat:2 }}</td>
-                <td>${{ ua.total_monthly_payment|floatformat:2 }}</td>
-                <td style="color: green;">${{ ua.total_paid|floatformat:2 }}</td>
-                <td style="color: red;">${{ ua.remaining_balance|floatformat:2 }}</td>
+                <td>{{ ua.total_assessment_amount|currency }}</td>
+                <td>{{ ua.total_monthly_payment|currency }}</td>
+                <td style="color: green;">{{ ua.total_paid|currency }}</td>
+                <td style="color: red;">{{ ua.remaining_balance|currency }}</td>
                 <td>
                     {% with status=ua.payment_status %}
                     <span class="status

@@ -1,0 +1,185 @@
+{% extends 'assessments/base.html' %}
+{% load currency_filters %}
+
+{% block title %}Monthly Payments - Unit {{ unit_assessment.unit.unit_number }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'assessments:home' %}">Home</a> /
+    <a href="{% url 'assessments:association_detail' unit_assessment.special_assessment.association.id %}">
+        {{ unit_assessment.special_assessment.association.name }}
+    </a> /
+    <a href="{% url 'assessments:assessment_detail' unit_assessment.special_assessment.id %}">
+        {{ unit_assessment.special_assessment.name }}
+    </a> /
+    <a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}">
+        Unit {{ unit_assessment.unit.unit_number }}
+    </a> /
+    Monthly Payments
+</div>
+
+<div class="card">
+    <h2>Unit {{ unit_assessment.unit.unit_number}} - Monthly Payment Tracker</h2>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <label>Monthly Payment Amount</label>
+            <div class="value">{{ unit_assessment.total_monthly_payment|currency }}</div>
+        </div>
+        <div class="info-item">
+            <label>Total Assessment</label>
+            <div class="value">{{ unit_assessment.total_assessment_amount|currency }}</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="{% url 'assessments:unit_assessment_detail' unit_assessment.id %}" class="btn">Back to Unit Details</a>
+        <a href="{% url 'assessments:adjust_unit_assessment' unit_assessment.id %}" class="btn">Adjust Amounts</a>
+    </div>
+</div>
+
+{% if messages %}
+<div class="card">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% for year, schedules in schedules_by_year.items %}
+<div class="card">
+    <h3>{{ year }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Month</th>
+                <th>Due Date</th>
+                <th>Expected</th>
+                <th>Paid Amount</th>
+                <th>Paid Date</th>
+                <th>Method</th>
+                <th>Reference</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in schedules %}
+            <tr class="{% if schedule.is_paid %}status-paid{% elif schedule.is_overdue %}status-behind{% endif %}">
+                <td><strong>Month {{ schedule.month_number }}</strong></td>
+                <td>{{ schedule.due_date|date:"M d, Y" }}</td>
+                <td>{{ schedule.expected_amount|currency }}</td>
+                <td>{{ schedule.paid_amount|currency }}</td>
+                <td>{{ schedule.paid_date|date:"M d, Y"|default:"—" }}</td>
+                <td>{{ schedule.payment_method|default:"—" }}</td>
+                <td>{{ schedule.reference_number|default:"—" }}</td>
+                <td>
+                    <span class="status
+                        {% if schedule.status == 'Paid' %}status-paid
+                        {% elif schedule.status == 'Overdue' %}status-behind
+                        {% else %}status-not-started
+                        {% endif %}">
+                        {{ schedule.status }}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-small" onclick="openPaymentForm({{ schedule.id }}, '{{ schedule.due_date|date:'F Y' }}', {{ schedule.expected_amount }}, {{ schedule.paid_amount }}, '{{ schedule.paid_date|date:'Y-m-d'|default:'' }}', '{{ schedule.payment_method }}', '{{ schedule.reference_number }}')">
+                        {% if schedule.is_paid %}Edit{% else %}Enter Payment{% endif %}
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+
+<!-- Payment Entry Modal -->
+<div id="paymentModal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: white; margin: 5% auto; padding: 20px; width: 500px; border-radius: 8px;">
+        <h3 id="modalTitle">Enter Payment</h3>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="schedule_id" id="schedule_id">
+
+            <div style="margin-bottom: 15px;">
+                <label for="paid_amount">Amount Paid:</label>
+                <input type="number" step="0.01" name="paid_amount" id="paid_amount" required style="width: 100%; padding: 8px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="paid_date">Payment Date:</label>
+                <input type="date" name="paid_date" id="paid_date" required style="width: 100%; padding: 8px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="payment_method">Payment Method:</label>
+                <select name="payment_method" id="payment_method" style="width: 100%; padding: 8px;">
+                    <option value="">Select...</option>
+                    <option value="Check">Check</option>
+                    <option value="ACH">ACH</option>
+                    <option value="Wire">Wire Transfer</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="reference_number">Reference/Check Number:</label>
+                <input type="text" name="reference_number" id="reference_number" style="width: 100%; padding: 8px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="notes">Notes:</label>
+                <textarea name="notes" id="notes" rows="3" style="width: 100%; padding: 8px;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn">Save Payment</button>
+                <button type="button" class="btn" onclick="closePaymentForm()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openPaymentForm(scheduleId, monthName, expectedAmount, paidAmount, paidDate, paymentMethod, referenceNumber) {
+    document.getElementById('modalTitle').innerText = 'Payment for ' + monthName;
+    document.getElementById('schedule_id').value = scheduleId;
+    document.getElementById('paid_amount').value = paidAmount || expectedAmount;
+    document.getElementById('paid_date').value = paidDate || '{{ today|date:"Y-m-d" }}';
+    document.getElementById('payment_method').value = paymentMethod;
+    document.getElementById('reference_number').value = referenceNumber;
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+function closePaymentForm() {
+    document.getElementById('paymentModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    var modal = document.getElementById('paymentModal');
+    if (event.target == modal) {
+        closePaymentForm();
+    }
+}
+</script>
+
+<style>
+.status-paid {
+    background-color: #d4edda;
+    color: #155724;
+}
+.status-behind {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+.status-paid td, .status-behind td {
+    color: inherit;
+}
+.alert { padding: 10px; margin: 10px 0; border-radius: 4px; }
+.alert-success { background-color: #d4edda; color: #155724; }
+</style>
+
+{% endblock %}

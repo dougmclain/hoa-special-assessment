@@ -1,4 +1,5 @@
 {% extends 'assessments/base.html' %}
+{% load currency_filters %}
 
 {% block title %}Unit {{ unit_assessment.unit.unit_number }} - HOA Special Assessment Tracker{% endblock %}
 
@@ -50,9 +51,39 @@
     </div>
 
     <div class="actions">
+        <a href="{% url 'assessments:monthly_payments' unit_assessment.id %}" class="btn" style="background-color: #28a745; color: white;">Monthly Payments</a>
+        <a href="{% url 'assessments:payoff_calculator' unit_assessment.id %}" class="btn" style="background-color: #17a2b8; color: white;">Payoff Calculator</a>
+        <a href="{% url 'assessments:edit_payoff' unit_assessment.id %}" class="btn" style="background-color: #fd7e14; color: white;">Edit Payoff</a>
+        <a href="{% url 'assessments:adjust_unit_assessment' unit_assessment.id %}" class="btn" style="background-color: #ffc107;">Adjust Amounts</a>
         <a href="{% url 'assessments:download_unit_statement_pdf' unit_assessment.id %}" class="btn">Download PDF Statement</a>
     </div>
 </div>
+
+{% if unit_assessment.payoff_amount and unit_assessment.payoff_amount > 0 %}
+<div class="card" style="border-left: 4px solid #fd7e14;">
+    <h3>Payoff Information</h3>
+    <div class="info-grid">
+        <div class="info-item">
+            <label>Payoff Amount</label>
+            <div class="value" style="color: #fd7e14; font-weight: bold;">{{ unit_assessment.payoff_amount|currency }}</div>
+        </div>
+        <div class="info-item">
+            <label>Payoff Date</label>
+            <div class="value">{{ unit_assessment.payoff_date|date:"M d, Y"|default:"N/A" }}</div>
+        </div>
+        <div class="info-item">
+            <label>Paid Off Status</label>
+            <div class="value">
+                {% if unit_assessment.is_paid_off %}
+                    <span class="status status-paid">Paid Off</span>
+                {% else %}
+                    <span class="status status-partial">Partial Payoff</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="card">
     <h3>Assessment Breakdown</h3>
@@ -67,20 +98,20 @@
         <tbody>
             <tr>
                 <td>Base Assessment</td>
-                <td>${{ unit_assessment.base_assessment_amount|floatformat:2 }}</td>
-                <td>${{ unit_assessment.monthly_base_payment|floatformat:2 }}</td>
+                <td>{{ unit_assessment.base_assessment_amount|currency }}</td>
+                <td>{{ unit_assessment.monthly_base_payment|currency }}</td>
             </tr>
             {% for fee in additional_fees %}
             <tr>
                 <td>LCE: {{ fee.fee_type }}</td>
-                <td>${{ fee.fee_amount|floatformat:2 }}</td>
-                <td>${{ fee.monthly_payment|floatformat:2 }}</td>
+                <td>{{ fee.fee_amount|currency }}</td>
+                <td>{{ fee.monthly_payment|currency }}</td>
             </tr>
             {% endfor %}
             <tr style="background-color: #366092; color: white; font-weight: bold;">
                 <td>TOTAL</td>
-                <td>${{ unit_assessment.total_assessment_amount|floatformat:2 }}</td>
-                <td>${{ unit_assessment.total_monthly_payment|floatformat:2 }}</td>
+                <td>{{ unit_assessment.total_assessment_amount|currency }}</td>
+                <td>{{ unit_assessment.total_monthly_payment|currency }}</td>
             </tr>
         </tbody>
     </table>
@@ -91,15 +122,15 @@
     <div class="info-grid">
         <div class="info-item">
             <label>Total Assessment</label>
-            <div class="value">${{ unit_assessment.total_assessment_amount|floatformat:2 }}</div>
+            <div class="value">{{ unit_assessment.total_assessment_amount|currency }}</div>
         </div>
         <div class="info-item">
             <label>Total Paid</label>
-            <div class="value" style="color: green;">${{ unit_assessment.total_paid|floatformat:2 }}</div>
+            <div class="value" style="color: green;">{{ unit_assessment.total_paid|currency }}</div>
         </div>
         <div class="info-item">
             <label>Remaining Balance / Payoff</label>
-            <div class="value" style="color: red;">${{ unit_assessment.remaining_balance|floatformat:2 }}</div>
+            <div class="value" style="color: red;">{{ unit_assessment.remaining_balance|currency }}</div>
         </div>
     </div>
 </div>
@@ -121,7 +152,7 @@
             {% for payment in payments %}
             <tr>
                 <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-                <td>${{ payment.amount|floatformat:2 }}</td>
+                <td>{{ payment.amount|currency }}</td>
                 <td>{{ payment.payment_method|default:"N/A" }}</td>
                 <td>{{ payment.reference_number|default:"N/A" }}</td>
                 <td>{{ payment.notes|default:"" }}</td>

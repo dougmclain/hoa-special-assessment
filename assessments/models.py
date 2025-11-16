@@ -109,6 +109,11 @@ class UnitAssessment(models.Model):
     # Calculated fields
     monthly_base_payment = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Monthly payment for base assessment with interest")
 
+    # Payoff tracking
+    payoff_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Lump sum payoff amount paid")
+    payoff_date = models.DateField(null=True, blank=True, help_text="Date of payoff payment")
+    is_paid_off = models.BooleanField(default=False, help_text="Whether assessment has been paid off")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -120,9 +125,12 @@ class UnitAssessment(models.Model):
         return f"{self.unit.unit_number} - {self.special_assessment.name}"
 
     def save(self, *args, **kwargs):
-        """Calculate monthly payment on save"""
+        """Calculate monthly payment on save only if not manually set"""
+        # Only auto-calculate if monthly_base_payment is 0 or None
+        # This allows manual override from PDF or user adjustments
         if self.payment_option == self.PAYMENT_OPTION_MONTHLY:
-            self.monthly_base_payment = self.special_assessment.calculate_monthly_payment(self.base_assessment_amount)
+            if not self.monthly_base_payment or self.monthly_base_payment == 0:
+                self.monthly_base_payment = self.special_assessment.calculate_monthly_payment(self.base_assessment_amount)
         else:
             self.monthly_base_payment = Decimal('0.00')
         super().save(*args, **kwargs)
@@ -146,49 +154,66 @@ class UnitAssessment(models.Model):
         return self.monthly_base_payment + self.total_lce_monthly_payment()
 
     def total_paid(self):
-        """Get total amount paid so far"""
-        return self.payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        """Get total amount paid so far including payoffs and monthly schedule payments"""
+        # Old payment records
+        old_payments = self.payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        # Monthly schedule payments
+        schedule_payments = self.monthly_schedule.aggregate(total=models.Sum('paid_amount'))['total'] or Decimal('0.00')
+        # Payoff amount
+        return old_payments + schedule_payments + self.payoff_amount
 
     def remaining_balance(self):
-        """Calculate remaining balance"""
-        if self.payment_option == self.PAYMENT_OPTION_LUMP:
-            return self.total_assessment_amount() - self.total_paid()
-        return self.calculate_payoff_amount()
+        """Calculate remaining balance - simply total assessment minus what's been paid"""
+        return max(Decimal('0.00'), self.total_assessment_amount() - self.total_paid())
 
-    def calculate_payoff_amount(self):
-        """Calculate the payoff amount at current date"""
+    def calculate_payoff_amount(self, as_of_date=None):
+        """Calculate the payoff amount as of a specific date"""
         from datetime import date
 
+        if as_of_date is None:
+            as_of_date = date.today()
+
+        # If already paid off, return 0
+        if self.is_paid_off:
+            return Decimal('0.00')
+
         if self.payment_option == self.PAYMENT_OPTION_LUMP:
             return self.total_assessment_amount() - self.total_paid()
 
-        # Calculate number of payments made
-        total_paid = self.total_paid()
-        monthly_payment = self.total_monthly_payment()
+        # Calculate how many months have elapsed since start
+        start_date = self.special_assessment.start_date
+        if as_of_date < start_date:
+            # If before start date, payoff is the full assessment
+            return self.total_assessment_amount()
 
-        if monthly_payment == 0:
-            return Decimal('0.00')
+        # Calculate months elapsed
+        months_elapsed = (as_of_date.year - start_date.year) * 12 + (as_of_date.month - start_date.month)
+        if as_of_date.day < start_date.day:
+            months_elapsed -= 1
+        months_elapsed = max(0, months_elapsed)
 
-        # This is a simplified calculation - for accurate payoff, we'd need to calculate
-        # the remaining principal using amortization schedule
-        payments_made = int(total_paid / monthly_payment)
-        remaining_months = self.special_assessment.loan_period_months - payments_made
+        # Calculate remaining months
+        total_months = self.special_assessment.loan_period_months
+        remaining_months = total_months - months_elapsed
 
         if remaining_months <= 0:
             return Decimal('0.00')
 
-        # Calculate remaining principal using loan formula
+        # Calculate remaining principal using present value formula
+        monthly_payment = float(self.total_monthly_payment())
         r = float(self.special_assessment.monthly_interest_rate())
-        n = remaining_months
-        pmt = float(monthly_payment)
 
         if r == 0:
-            return Decimal(pmt * n).quantize(Decimal('0.01'))
+            # No interest case
+            remaining_principal = monthly_payment * remaining_months
+        else:
+            # Present value of remaining payments: PV = PMT * [(1 - (1+r)^-n) / r]
+            remaining_principal = monthly_payment * ((1 - math.pow(1 + r, -remaining_months)) / r)
 
-        # Present value of remaining payments
-        # PV = PMT * [(1 - (1+r)^-n) / r]
-        remaining_principal = pmt * ((1 - math.pow(1 + r, -n)) / r)
-        return Decimal(remaining_principal).quantize(Decimal('0.01'))
+        # Subtract any payoff amount already paid
+        remaining_after_payoff = Decimal(remaining_principal).quantize(Decimal('0.01')) - self.payoff_amount
+
+        return max(Decimal('0.00'), remaining_after_payoff)
 
     def payment_status(self):
         """Get payment status"""
@@ -241,12 +266,56 @@ class AdditionalFee(models.Model):
         return f"{self.unit_assessment.unit.unit_number} - {self.fee_type}: ${self.fee_amount}"
 
     def save(self, *args, **kwargs):
-        """Calculate monthly payment on save"""
+        """Calculate monthly payment on save only if not manually set"""
+        # Only auto-calculate if monthly_payment is 0 or None
+        # This allows manual override from PDF or user adjustments
         if self.unit_assessment.payment_option == UnitAssessment.PAYMENT_OPTION_MONTHLY:
-            self.monthly_payment = self.unit_assessment.special_assessment.calculate_monthly_payment(self.fee_amount)
+            if not self.monthly_payment or self.monthly_payment == 0:
+                self.monthly_payment = self.unit_assessment.special_assessment.calculate_monthly_payment(self.fee_amount)
         else:
             self.monthly_payment = Decimal('0.00')
         super().save(*args, **kwargs)
+
+
+class MonthlyPaymentSchedule(models.Model):
+    """Tracks each month's expected payment for a unit"""
+    unit_assessment = models.ForeignKey(UnitAssessment, on_delete=models.CASCADE, related_name='monthly_schedule')
+    due_date = models.DateField(help_text="Payment due date (1st of each month)")
+    month_number = models.IntegerField(help_text="Month number (1-240)")
+    expected_amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Expected payment amount for this month")
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Amount paid for this month")
+    paid_date = models.DateField(null=True, blank=True, help_text="Date payment was received")
+    payment_method = models.CharField(max_length=50, blank=True, help_text="e.g., 'Check', 'Wire', 'ACH'")
+    reference_number = models.CharField(max_length=100, blank=True, help_text="Check number or transaction reference")
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['due_date']
+        unique_together = ['unit_assessment', 'month_number']
+
+    def __str__(self):
+        return f"{self.unit_assessment.unit.unit_number} - Month {self.month_number} ({self.due_date})"
+
+    def is_paid(self):
+        """Check if this month is fully paid"""
+        return self.paid_amount >= self.expected_amount
+
+    def is_overdue(self):
+        """Check if payment is overdue"""
+        from datetime import date
+        return date.today() > self.due_date and not self.is_paid()
+
+    def status(self):
+        """Get payment status for this month"""
+        if self.is_paid():
+            return "Paid"
+        elif self.is_overdue():
+            return "Overdue"
+        else:
+            return "Pending"
 
 
 class Payment(models.Model):
